@@ -84,9 +84,9 @@ dtda_obj.get_pers_im(6, 6, dim=0, bandwidth=2)
 
 ## `bclr`
 
-- To assess the dynamics of the 36-dimensional time series, we use `bclr`: available at <a href="https://github.com/manilasoldier/bclr">https://github.com/manilasoldier/bclr</a>
+- To assess the dynamics of the 36-dimensional time series, we use the package `bclr`: available at <a href="https://github.com/manilasoldier/bclr">https://github.com/manilasoldier/bclr</a>, and via `pip install bclr` on PyPI.
 
-- Companion package to "Bayesian changepoint detection via logistic regression and the topological analysis of image series" (Thomas, Jauch, and Matteson, 2024)
+- Companion package to "Bayesian changepoint detection via logistic regression and the topological analysis of image series" (Thomas, Jauch, and Matteson, 2025)
 
 - Used multiple extension (`MultiBayesCC`) of generalized Bayesian changepoint method
 
