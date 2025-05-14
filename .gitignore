@@ -1,0 +1,6 @@
+*.pkl
+Video/Denoised*.png
+*.gif
+Video/*.png
+First_Change/*.png
+Fourth_Change/*.png

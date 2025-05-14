@@ -1,0 +1,306 @@
+---
+title: "Topological data analysis for statistical analysis of structure and dynamics in imaging"
+author: "Andrew M. Thomas"
+format: 
+  revealjs:
+    html-math-method: mathjax
+    theme: tda_cfe
+    logo: images/Block-IOWA-BLACK.png
+    mainfont: Nunito
+    fontsize: 24pt
+    slide-number: true
+    menu:
+      numbers: true
+css: tda_cfe.css
+---
+
+## Nanoparticle videos
+
+<div style="max-width: fit-content; margin-left: auto; margin-right: auto;">
+<iframe src="Video/Video.mp4" style="border:10px solid black;" height="468px;" width="640px;"></iframe>
+</div>
+
+<p style="font-size: 24px;">Smoothed, then histogram equalized version of platinum nanoparticle video. Nanoparticle is continually interacting with cerium oxide support (right). </p>
+
+## Objectives
+
+- <i style='font-style: italic;'>Capture</i> the state/structure in each frame of the video <br><br>
+
+- <i style='font-style: italic;'>Identify</i> "shape" features that drive that changes in state <br><br>
+
+- <i style='font-style: italic;'>Quantify</i> uncertainty around change in dynamics <br><br>
+
+- <i style='font-style: italic;'>Ensure</i> that genuine dynamics is captured by looking at denoised video <br><br>
+
+- <i style='font-style: italic;'>Show</i> how we can do that by giving code
+
+## TDA: cubical persistence
+
+<div class="centered" style='width: 800px;'>
+![](images/PersistenceDiagramChangepointTDA.png)
+</div>
+
+<div style='font-size: 20px;'><b>0-dimensional persistent homology: </b>As intensity threshold increases, pixels $p$ which are 8-connected local minima create connected components $C_p$ <i style='font-style: italic;'>born</i> at threshold $b(p) = I(p)$. 
+
+If $C_p$ merges with a connected component $C_q$ via a pixel $r$ at intensity $r$ where $I(q) < I(p)$ then $C_p$ <i style='font-style: italic;'>dies</i> at threshold $d(p) = I(r)$. For dimension 0 ($H_0$), $PD$ is the collection of points $(b(p), d(p))$. </div>
+
+
+## Persistence images
+
+<div class="centered">
+![](images/PI_pipelineTDA_oncology.png){width=90%}
+<figcaption style="font-size: 16px;">Image from Bukkuri, Andor, and Darcy (2021)</figcaption>
+</div> 
+
+<div style="font-size: 24px;">
+A <i style="font-style: italic;">persistence image</i> (PI) is a discrete sampling of the function defined on $\mathbb{R} \times [0, \infty)$ by 
+$$
+\rho(x,y) = \sum_{i=1}^K w(d_i-b_i) \exp\Big( \frac{(b_i - x)^2 + (d_i - b_i - y)^2}{2\sigma^2} \Big).
+$$
+We set $\sigma = 2$ and $w(\alpha) = \arctan(0.5\alpha)$ as in Obayashi et. al (2018). <br>
+
+Note also that $w: [0, \infty) \to [0, \infty)$ and that $(b_i, d_i), i = 1, \dots, K$ are an enumeration of the points in the persistence diagram like the previous slide.  </div>
+
+## detecTDA
+
+The code to analyze the video above is available in the `detectda` package (Thomas, 2024), available on the Python Package Index (PyPI) <br><br>
+
+```{.python}
+import detectda as dtda
+
+# Divide each pixel intensity in video by 32
+dtda_obj = dtda.ImageSeriesPlus(video, polygon, div=32, n_jobs=4)
+
+# Calculate persistent homology after smoothing with Gaussian filter
+dtda_obj.fit(sigma=2)
+
+# Calculate 6 x 6 persistence images for image series
+dtda_obj.get_pers_im(6, 6, dim=0, bandwidth=2)
+```
+
+<br>
+
+<p style="font-size: 28px;">Note that here we have divided the pixel intensities in the video by 32 due to the electron detector recording them in multiples of 32. In the `fit` method, we smooth the images with Gaussian filter where $\sigma=2$. Similarly, we have set the Gaussian kernel for the persistence images to have $\sigma=2$.</p>
+
+## `bclr`
+
+- To assess the dynamics of the 36-dimensional time series, we use `bclr`: available at <a href="https://github.com/manilasoldier/bclr">https://github.com/manilasoldier/bclr</a>
+
+- Companion package to "Bayesian changepoint detection via logistic regression and the topological analysis of image series" (Thomas, Jauch, and Matteson, 2024)
+
+- Used multiple extension (`MultiBayesCC`) of generalized Bayesian changepoint method
+
+- Multiple extension proceeds by looking in consecutive predefined segments, then using bottom-up segmentation to eliminate estimated changes
+
+## `bclr` for single changepoint
+
+If we define the quasi-likelihood as 
+
+$$
+Q({\beta}, \kappa \mid {X})  =  \prod_{i=1}^{\kappa} \frac{1}{1+e^{{x}_i^{\top}{\beta}}} \prod_{i=\kappa+1}^{n} \frac{e^{{x}_i^{\top}{\beta}}}{1+e^{{x}_i^{\top}{\beta}}}
+$$
+then the quasi-posterior is defined as
+$$
+\pi(\kappa, \beta \mid {X}) \propto Q(\kappa, \beta \mid {X}) \pi(\kappa, \beta).
+$$
+
+Setting the prior $\pi(\kappa, \beta)$ to be the product of a uniform prior over $\{1, \dots, n-1\}$ and a multivariate normal, allows us to use Pólya-Gamma sampling (Polson, Scott, and Windle, 2013).
+
+## `bclr` for multiple changepoints
+
+<div class="centered">
+![](images/BCLR_Multi.png){width=90%}
+</div> 
+
+## Working with `bclr`, I
+
+```{.python}
+import bclr
+import numpy as np
+
+# Specify prior covariance, high regularization
+prior_cov = np.diag(np.repeat(0.2, 36))
+
+# Create bclr object, specify large number of changepoints
+bclr_dtda = bclr.MultiBayesCC(dtda_obj.pis, cps=8, prior_cov=prior_cov, min_size=10)
+
+# Find a better initialization and remove spurious distributions
+bclr_dtda.warm_up(thr=0.5)
+```
+
+- In this multiple changepoint setup, we run our method for a small number of iterations initially to find intervals to search in. 
+
+- Here we get rid of changepoints whose posterior distribution has (normalized) entropy greater than 0.5 (via `thr` argument)
+
+- We also eliminate changepoints that are too close together (via `min_size` argument)
+
+## Working with `bclr`, II
+
+```{.python}
+# We first fit our dataset
+bclr_dtda.fit()
+
+# Calculate posterior summaries for each segment
+bclr_dtda.transform()
+
+# Get various summaries 
+cp_df = bclr_dtda.cps_df()
+```
+
+And here is the output of `cp_df`...
+
+```{python echo=c(-1,-2)}
+import pandas as pd
+cp_df = pd.read_csv("cp_df.csv")
+cp_df
+```
+
+
+## Quantifying uncertainty, I
+
+<div style="max-width: fit-content; margin-left: auto; margin-right: auto;">
+![](images/Nanoparticle_change 1.png)
+</div>
+
+<p style="font-size: 24px;">95% credible bands (depicted in red) for estimated changepoints (depicted in black) derived from generalized posterior.</p>
+
+## Quantifying uncertainty, II {visibility="uncounted"}
+
+<div style="max-width: fit-content; margin-left: auto; margin-right: auto;">
+![](images/Nanoparticle_change 2.png)
+</div>
+
+<p style="font-size: 24px;">95% credible bands (depicted in red) for estimated changepoints (depicted in black) derived from generalized posterior.</p>
+
+## Quantifying uncertainty, III {visibility="uncounted"}
+
+<div style="max-width: fit-content; margin-left: auto; margin-right: auto;">
+![](images/Nanoparticle_change 3.png)
+</div>
+
+<p style="font-size: 24px;">95% credible bands (depicted in red) for estimated changepoints (depicted in black) derived from generalized posterior.</p>
+
+## Quantifying uncertainty, IV {visibility="uncounted"}
+
+<div style="max-width: fit-content; margin-left: auto; margin-right: auto;">
+![](images/Nanoparticle_change 4.png)
+</div>
+
+<p style="font-size: 24px;">95% credible bands (depicted in red) for estimated changepoints (depicted in black) derived from generalized posterior.</p>
+
+## Quantifying uncertainty, V {visibility="uncounted"}
+
+<div style="max-width: fit-content; margin-left: auto; margin-right: auto;">
+![](images/Nanoparticle_change 5.png)
+</div>
+
+<p style="font-size: 24px;">95% credible bands (depicted in red) for estimated changepoints (depicted in black) derived from generalized posterior.</p>
+
+## Example: estimated change I {.center}
+
+<div style="max-width: fit-content; margin-left: auto; margin-right: auto;">
+<!---![](First_Change/PI_cp1_030303_P2.gif)--->
+<iframe src="First_Change/PI_cp1_030303_P2.mp4" style="border:10px solid black;" height="468px;" width="640px;"></iframe>
+</div>
+
+<p style="font-size: 24px;">Estimated changepoint is at frame <b>545</b> <br> Posterior probability: <b>0.914</b>; RMSE: <b>0.026</b></p>
+
+<!---
+## Example: estimated change IV {.center}
+
+<div style="max-width: fit-content; margin-left: auto; margin-right: auto;">
+![](Fourth_Change/PI_cp4_030303_P2.gif)
+</div>
+
+<p style="font-size: 24px;">Estimated changepoint is at frame <b>1064</b> <br> Posterior probability: <b>0.472</b>; RMSE: <b>0.5858</b></p>
+--->
+
+## A denoised video
+
+<div style="max-width: fit-content; margin-left: auto; margin-right: auto;">
+<iframe src="Video/DenoisedVideo.mp4" style="border:10px solid black;" height="468px;" width="640px;"></iframe>
+</div>
+
+<p style="font-size: 24px;"> Histogram equalized version of deep-denoised nanoparticle video. Video was denoised according "Unsupervised Deep Video Denoised" as in Crozier et. al (2024). </p>
+
+## Estimated change I for denoised video
+
+<div style="max-width: fit-content; margin-left: auto; margin-right: auto;">
+<!---![](First_Change/PI_cp1_030303_P2_Denoised.gif)--->
+<iframe src="First_Change/PI_cp1_030303_P2_Denoised.mp4" style="border:10px solid black;" height="468px;" width="640px;"></iframe>
+</div>
+
+<p style="font-size: 24px;">`bclr` applied to PIs of denoised video. The dynamics in this video are captured much more effectively. We can see that the presence of structure is driving the change.   </p>
+
+## Up to the ALPS: calculating lifetimes
+
+<div style="max-width: 800px; margin-left: auto; margin-right: auto;">
+![](images/Frame41_Frame754.png)
+</div>
+
+
+## The ALPS statistic and plot
+
+```{.python}
+# Define detecTDA object using ImageSeries (only 0-d homology)
+dtda_obj_denoised = dtda.ImageSeries(video_d, polygon_d, n_jobs=4)
+
+# Calculate persistent homology after smoothing with Gaussian filter
+dtda_obj_denoised.fit(sigma=2)
+
+# Calculate ALPS plot for frames 41 and 754
+dtda_obj_denoised.alps_plot([40, 753])
+```
+
+<div style="max-width: 500px; margin-left: auto; margin-right: auto;">
+![](images/dualALPS_plotsNunito.png)
+</div>
+
+## ALPS for denoised video
+
+We can use the so-called ALPS statistic (Thomas et. al, 2024) to summarize the trajectory of changepoints we inferred from the noisy video. 
+
+<div style="max-width: fit-content; margin-left: auto; margin-right: auto;">
+![](images/ALPS_denoised_overlay.png)
+</div>
+
+## Conclusion
+
+- `detectda` for assessing structure <br><br>
+
+- `bclr` for ascertaining dynamics <br><br>
+
+- ALPS statistic captures both, with useful visualization <br><br>
+
+---
+
+<div class="thanks">Thank you!</div>
+
+## References {visibility="uncounted"}
+
+<div style="font-size: 24px; width:700px">
+<b>Atomic resolution observations of nanoparticle surface dynamics and instabilities enabled by artificial intelligence</b> <br>
+Peter A. Crozier, Matan Leibovich, Piyush Haluai, Mai Tan, <b style="color: gray;">Andrew M. Thomas</b>, Joshua Vincent, David M. Matteson, <br> Yifan Wang, and Carlos Fernandez-Granda. <br>
+<i style="font-style: italic;">arXiv preprint</i>. <a href="https://arxiv.org/abs/2407.17669">arXiv:2407.17669</a>, (2024).
+
+<b>Bayesian changepoint detection via logistic regression and the topological analysis of image series</b> <br>
+<b style="color: gray;">Andrew M. Thomas</b>, Michael Jauch, David S. Matteson. <br>
+<i style="font-style: italic;">arXiv preprint</i>. <a href="https://arxiv.org/abs/2401.02917">arXiv:2401.02917</a>, (2024). <br>
+
+<b>Feature detection and hypothesis testing for extremely noisy nanoparticle images using topological data analysis</b> <br>
+<b style="color: gray;">Andrew M. Thomas</b>, Peter A. Crozier, Yuchen Xu, <br> and David S. Matteson. <br>
+<i style="font-style: italic;">Technometrics</i>. <a href="https://doi.org/10.1080/00401706.2023.2203744">DOI:10.1080/00401706.2023.2203744</a>, (2023). 
+</div>
+
+## Choosing $\beta$ parameters for PIs {visibility="uncounted"}
+
+<div style='font-size: 32px;'>
+Once we have a posterior for $\beta$, and since our data is standardized, there is a meaningful zero.
+
+In this analysis we have chosen $6 \times 6$ persistence images. Therefore, we have marginal posteriors 
+$$
+\pi_{ij}(\beta | X), \quad 1 \leq i, j \leq 6
+$$
+for each cell/pixel in the persistence image. We then select those $\beta_{ij}$ such that the $\alpha$ (resp. $1-\alpha$) quantile is greater than (resp. less than 0). 
+
+Finally, all points in the persistence diagram that lie in the rectangle associated to $\beta_{ij}$ in the $PI$ are noted and we may then plot these on the original image, because each point in the persistence diagram maps to a single pixel in the image.</div>
