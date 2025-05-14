@@ -221,7 +221,7 @@ cp_df
 <iframe src="Video/DenoisedVideo.mp4" style="border:10px solid black;" height="468px;" width="640px;"></iframe>
 </div>
 
-<p style="font-size: 24px;"> Histogram equalized version of deep-denoised nanoparticle video. Video was denoised according "Unsupervised Deep Video Denoised" as in Crozier et. al (2024). </p>
+<p style="font-size: 24px;"> Histogram equalized version of deep-denoised nanoparticle video. Video was denoised according "Unsupervised Deep Video Denoising" as in Crozier et. al (2025). </p>
 
 ## Estimated change I for denoised video
 
@@ -253,12 +253,12 @@ dtda_obj_denoised.alps_plot([40, 753])
 ```
 
 <div style="max-width: 500px; margin-left: auto; margin-right: auto;">
-![](images/dualALPS_plotsNunito.png)
+![](images/DualALPS_plotsNunito.png)
 </div>
 
 ## ALPS for denoised video
 
-We can use the so-called ALPS statistic (Thomas et. al, 2024) to summarize the trajectory of changepoints we inferred from the noisy video. 
+We can use the so-called ALPS statistic (Thomas et. al, 2023) to summarize the trajectory of changepoints we inferred from the noisy video. 
 
 <div style="max-width: fit-content; margin-left: auto; margin-right: auto;">
 ![](images/ALPS_denoised_overlay.png)
@@ -279,13 +279,13 @@ We can use the so-called ALPS statistic (Thomas et. al, 2024) to summarize the t
 ## References {visibility="uncounted"}
 
 <div style="font-size: 24px; width:700px">
-<b>Atomic resolution observations of nanoparticle surface dynamics and instabilities enabled by artificial intelligence</b> <br>
-Peter A. Crozier, Matan Leibovich, Piyush Haluai, Mai Tan, <b style="color: gray;">Andrew M. Thomas</b>, Joshua Vincent, David M. Matteson, <br> Yifan Wang, and Carlos Fernandez-Granda. <br>
-<i style="font-style: italic;">arXiv preprint</i>. <a href="https://arxiv.org/abs/2407.17669">arXiv:2407.17669</a>, (2024).
+<b>Visualizing nanoparticle surface dynamics and instabilities enabled by deep denoising</b> <br>
+Peter A. Crozier, Matan Leibovich, Piyush Haluai, Mai Tan, <b style="color: gray;">Andrew M. Thomas</b>, Joshua Vincent, Sreyas Mohan, Adria Marcos Morales, Shreyas A. Kulkarni, David S. Matteson, <br> Yifan Wang, and Carlos Fernandez-Granda. <br>
+<i style="font-style: italic;">Science</i>. <a href="https://doi.org/10.1126/science.ads2688">DOI:10.1126/science.ads2688</a>, (2025).
 
 <b>Bayesian changepoint detection via logistic regression and the topological analysis of image series</b> <br>
 <b style="color: gray;">Andrew M. Thomas</b>, Michael Jauch, David S. Matteson. <br>
-<i style="font-style: italic;">arXiv preprint</i>. <a href="https://arxiv.org/abs/2401.02917">arXiv:2401.02917</a>, (2024). <br>
+<i style="font-style: italic;">arXiv preprint</i>. <a href="https://arxiv.org/abs/2401.02917">arXiv:2401.02917</a>, (2025). <br>
 
 <b>Feature detection and hypothesis testing for extremely noisy nanoparticle images using topological data analysis</b> <br>
 <b style="color: gray;">Andrew M. Thomas</b>, Peter A. Crozier, Yuchen Xu, <br> and David S. Matteson. <br>
